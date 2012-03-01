@@ -3,6 +3,8 @@ HOMEPAGE="http://www.mozilla.org/projects/security/certs/"
 SRC_URI="fedora/certdata.txt fedora/blacklist.txt fedora/certdata2pem.py"
 SRC_DIR=.
 
+DEPEND="openssl python rcs"
+
 CYGPORT_USE_UNSTABLE_API=1
 src_unpack_hook() {
 	sed -e '1,/BEGIN LICENSE BLOCK/d;/END LICENSE BLOCK/,$d;s/^# *//g' certdata.txt > COPYING
