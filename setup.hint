@@ -1,4 +1,0 @@
-category: Net
-requires:
-sdesc: "CA root certificates"
-ldesc: "Mozilla's CA root certificates for use with OpenSSL and GNU-TLS."
