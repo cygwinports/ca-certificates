@@ -1,3 +1,6 @@
+NAME="ca-certificates"
+VERSION=1.86
+RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
 DESCRIPTION="Mozilla's CA root certificates for use with OpenSSL and GNU-TLS."
