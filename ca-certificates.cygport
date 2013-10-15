@@ -5,10 +5,10 @@ CATEGORY="Net"
 SUMMARY="CA root certificates"
 DESCRIPTION="Mozilla's CA root certificates for use with OpenSSL and GNU-TLS."
 HOMEPAGE="http://www.mozilla.org/projects/security/certs/"
-SRC_URI="fedora/certdata.txt fedora/blacklist.txt fedora/certdata2pem.py"
+SRC_URI="fedora/certdata.txt fedora/nssckbi.h fedora/blacklist.txt fedora/certdata2pem.py"
 SRC_DIR=.
 
-DEPEND="openssl python rcs"
+DEPEND="openssl python"
 
 src_compile() {
 	mkdir -p ${B}/certs
@@ -22,10 +22,11 @@ src_compile() {
 # Authorities.  It was generated from the Mozilla root CA list.
 #
 # Source: mozilla/security/nss/lib/ckfw/builtins/certdata.txt
+# Source: mozilla/security/nss/lib/ckfw/builtins/nssckbi.h
 #
 # Generated from:
 EOF
-		ident -q ${S}/certdata.txt | sed '1d;s/^/#/';
+		grep -w NSS_BUILTINS_LIBRARY_VERSION ${S}/nssckbi.h | awk '{print "# " $2 " " $3}';
 		echo '#';
 	) > ca-bundle.crt
 	(
@@ -36,10 +37,11 @@ EOF
 # format and have trust bits set accordingly.
 #
 # Source: mozilla/security/nss/lib/ckfw/builtins/certdata.txt
+# Source: mozilla/security/nss/lib/ckfw/builtins/nssckbi.h
 #
 # Generated from:
 EOF
-		ident -q ${S}/certdata.txt | sed '1d;s/^/#/';
+		grep -w NSS_BUILTINS_LIBRARY_VERSION ${S}/nssckbi.h | awk '{print "# " $2 " " $3}';
 		echo '#';
 	) > ca-bundle.trust.crt
 
