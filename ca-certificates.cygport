@@ -67,4 +67,8 @@ EOF
 src_install() {
 	insinto /usr/ssl/certs
 	doins ${B}/*.crt
+
+	# for compatibility with OpenSSL defaults
+	# http://cygwin.com/ml/cygwin/2013-09/msg00161.html
+	dosym certs/ca-bundle.crt /usr/ssl/cert.pem
 }
