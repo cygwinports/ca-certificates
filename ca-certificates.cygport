@@ -1,34 +1,39 @@
 NAME="ca-certificates"
-VERSION=1.87
+VERSION=1.94
 RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
 DESCRIPTION="Mozilla's CA root certificates for use with OpenSSL and GNU-TLS."
 HOMEPAGE="http://www.mozilla.org/projects/security/certs/"
-SRC_URI="fedora/certdata.txt fedora/nssckbi.h fedora/blacklist.txt fedora/certdata2pem.py"
+SRC_URI="fedora/certdata.txt
+	 fedora/nssckbi.h
+	 fedora/trust-fixes
+	 fedora/certdata2pem.py
+	 fedora/update-ca-trust
+	 fedora/update-ca-trust.8.txt
+	 fedora/README.usr
+	 fedora/README.etc
+	 fedora/README.extr
+	 fedora/README.java
+	 fedora/README.openssl
+	 fedora/README.pem
+	 fedora/README.src
+"
 SRC_DIR=.
 
-DEPEND="openssl python"
+DEPEND="asciidoc openssl python libxslt"
+
+ca_certificates_REQUIRES="p11-kit p11-kit-trust"
+ca_certificates_CONTENTS="etc/pki/ etc/postinstall/ usr/bin/ usr/lib/p11-kit/
+			  usr/lib/security/ usr/share/man/ usr/share/pki/ usr/ssl/"
 
 src_compile() {
 	mkdir -p ${B}/certs
 	cd ${B}/certs
-	cp ${S}/*.txt .
+	cp ${S}/certdata.txt .
 	python ${S}/certdata2pem.py
+
 	cd ${B}
-	(
-		cat <<EOF
-# This is a bundle of X.509 certificates of public Certificate
-# Authorities.  It was generated from the Mozilla root CA list.
-#
-# Source: mozilla/security/nss/lib/ckfw/builtins/certdata.txt
-# Source: mozilla/security/nss/lib/ckfw/builtins/nssckbi.h
-#
-# Generated from:
-EOF
-		grep -w NSS_BUILTINS_LIBRARY_VERSION ${S}/nssckbi.h | awk '{print "# " $2 " " $3}';
-		echo '#';
-	) > ca-bundle.crt
 	(
 		cat <<EOF
 # This is a bundle of X.509 certificates of public Certificate
@@ -45,30 +50,88 @@ EOF
 		echo '#';
 	) > ca-bundle.trust.crt
 
+	> info.trust
+	> info.notrust
+
 	for f in certs/*.crt
 	do
+		echo "processing $f"
 		tbits=`sed -n '/^# openssl-trust/{s/^.*=//;p;}' $f`
-		case $tbits in
-		  *serverAuth*) openssl x509 -text -in "$f" >> ca-bundle.crt ;;
-		esac
+		distbits=`sed -n '/^# openssl-distrust/{s/^.*=//;p;}' $f`
+		alias=`sed -n '/^# alias=/{s/^.*=//;p;q;}' $f | sed "s/'//g" | sed 's/"//g'`
+		targs=""
 
 		if [ -n "$tbits" ]
 		then
-			targs=""
 			for t in $tbits
 			do
 				targs="${targs} -addtrust $t"
 			done
-			openssl x509 -text -in "$f" -trustout $targs >> ca-bundle.trust.crt
+		fi
+		if [ -n "$distbits" ]
+		then
+			for t in $distbits
+			do
+				targs="${targs} -addreject $t"
+			done
+		fi
+		if [ -n "$targs" ]
+		then
+			echo "trust flags $targs for $f" >> info.trust
+			openssl x509 -text -in "$f" -trustout $targs -setalias "$alias" >> ca-bundle.trust.crt
+		else
+			echo "no trust flags for $f" >> tee -a info.notrust
+			openssl x509 -text -in "$f" -setalias "$alias" >> ca-bundle.neutral-trust.crt
 		fi
 	done
+	for p in certs/*.p11-kit
+	do
+		cat $p >> ca-bundle.supplement.p11-kit
+	done
+	cat ${S}/trust-fixes >> ca-bundle.supplement.p11-kit
+
+	asciidoc -v -d manpage -b docbook -o ${B}/update-ca-trust.8.xml ${S}/update-ca-trust.8.txt
+	xsltproc --nonet -o ${B}/update-ca-trust.8 /etc/asciidoc/docbook-xsl/manpage.xsl ${B}/update-ca-trust.8.xml
 }
 
 src_install() {
-	insinto /usr/ssl/certs
-	doins ${B}/*.crt
+	dobin ${S}/update-ca-trust
+	doman ${B}/update-ca-trust.8
 
-	# for compatibility with OpenSSL defaults
-	# http://cygwin.com/ml/cygwin/2013-09/msg00161.html
-	dosym certs/ca-bundle.crt /usr/ssl/cert.pem
+	# for p11-kit
+	dodir /usr/lib/p11-kit
+	dosym ../../bin/update-ca-trust /usr/lib/p11-kit/p11-kit-extract-trust
+
+	insinto /usr/share/pki/ca-trust-source
+	doins ${B}/ca-bundle.{trust.crt,neutral-trust.crt,supplement.p11-kit}
+	newins ${S}/README.usr README
+
+	# touch all files overwritten by update-ca-trust for easy cleanup
+	insinto /etc/pki/ca-trust/extracted
+	newins ${S}/README.extr README
+
+	insinto /etc/pki/ca-trust/extracted/openssl
+	newins ${S}/README.openssl README
+	touch ${D}/etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
+
+	insinto /etc/pki/ca-trust/extracted/pem
+	newins ${S}/README.pem README
+	touch ${D}/etc/pki/ca-trust/extracted/pem/{tls,email,objsign}-ca-bundle.pem
+
+	insinto /etc/pki/ca-trust/extracted/java
+	newins ${S}/README.java README
+	touch ${D}/etc/pki/ca-trust/extracted/java/cacerts
+
+	insinto /etc/pki/ca-trust/source
+	newins ${S}/README.src README
+
+	# for OpenSSL and static ca-certificates consumers
+	dodir /usr/ssl/certs
+	dosym /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /usr/ssl/certs/ca-bundle.crt
+	dosym /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /usr/ssl/cert.pem
+	dosym /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt /usr/ssl/certs/ca-bundle.trust.crt
+
+	# for GNU Classpath Java
+	dodir /usr/lib/security
+	dosym /etc/pki/ca-trust/extracted/java/cacerts /usr/lib/security/cacerts
 }
