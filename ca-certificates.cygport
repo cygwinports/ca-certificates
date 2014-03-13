@@ -1,6 +1,6 @@
 NAME="ca-certificates"
 VERSION=1.96
-RELEASE=3
+RELEASE=4
 CATEGORY="Net"
 SUMMARY="CA root certificates"
 DESCRIPTION="Mozilla's CA root certificates for use with OpenSSL and GNU-TLS."
@@ -20,6 +20,8 @@ SRC_URI="fedora/certdata.txt
 	 fedora/README.src
 "
 SRC_DIR=.
+
+ARCH=noarch
 
 DEPEND="asciidoc openssl python libxslt"
 
@@ -100,7 +102,7 @@ src_install() {
 
 	# for p11-kit
 	dodir /usr/lib/p11-kit
-	dosym ../../bin/update-ca-trust /usr/lib/p11-kit/p11-kit-extract-trust
+	dosym ../../bin/update-ca-trust /usr/lib/p11-kit/trust-extract-compat
 
 	insinto /usr/share/pki/ca-trust-source
 	doins ${B}/ca-bundle.{trust.crt,neutral-trust.crt,supplement.p11-kit}
