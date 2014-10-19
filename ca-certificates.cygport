@@ -1,6 +1,6 @@
 NAME="ca-certificates"
-VERSION=1.97
-RELEASE=2
+VERSION=2.1
+RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
 DESCRIPTION="Mozilla's CA root certificates for use with OpenSSL and GNU-TLS."
@@ -42,6 +42,9 @@ src_compile() {
 # Authorities.  It was generated from the Mozilla root CA list.
 # These certificates are in the OpenSSL "TRUSTED CERTIFICATE"
 # format and have trust bits set accordingly.
+# An exception are auxiliary certificates, without positive or negative
+# trust, but are used to assist in finding a preferred trust path.
+# Those neutral certificates use the plain BEGIN CERTIFICATE format.
 #
 # Source: mozilla/security/nss/lib/ckfw/builtins/certdata.txt
 # Source: mozilla/security/nss/lib/ckfw/builtins/nssckbi.h
@@ -83,7 +86,7 @@ EOF
 			openssl x509 -text -in "$f" -trustout $targs -setalias "$alias" >> ca-bundle.trust.crt
 		else
 			echo "no trust flags for $f" >> tee -a info.notrust
-			openssl x509 -text -in "$f" -setalias "$alias" >> ca-bundle.neutral-trust.crt
+			openssl x509 -text -in "$f" >> ca-bundle.neutral-trust.crt
 		fi
 	done
 	for p in certs/*.p11-kit
