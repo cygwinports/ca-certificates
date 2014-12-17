@@ -1,5 +1,5 @@
 NAME="ca-certificates"
-VERSION=2.1
+VERSION=2.2
 RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
@@ -7,9 +7,11 @@ DESCRIPTION="Mozilla's CA root certificates for use with OpenSSL and GNU-TLS."
 HOMEPAGE="http://www.mozilla.org/projects/security/certs/"
 SRC_URI="fedora/certdata.txt
 	 fedora/nssckbi.h
+	 fedora/update-ca-trust
 	 fedora/trust-fixes
 	 fedora/certdata2pem.py
-	 fedora/update-ca-trust
+	 fedora/ca-legacy.conf
+	 fedora/ca-legacy
 	 fedora/update-ca-trust.8.txt
 	 fedora/README.usr
 	 fedora/README.etc
@@ -26,11 +28,12 @@ ARCH=noarch
 DEPEND="asciidoc openssl python libxslt"
 
 ca_certificates_REQUIRES="p11-kit p11-kit-trust"
-ca_certificates_CONTENTS="etc/pki/ etc/postinstall/ etc/ssl/ usr/bin/ usr/lib/p11-kit/
+ca_certificates_CONTENTS="etc/defaults/ etc/pki/ etc/postinstall/ etc/preremove/
+			  etc/ssl/ usr/bin/ usr/lib/p11-kit/
 			  usr/lib/security/ usr/share/man/ usr/share/pki/ usr/ssl/"
 
 src_compile() {
-	mkdir -p ${B}/certs
+	mkdir -p ${B}/certs/legacy-{en,dis}able
 	cd ${B}/certs
 	cp ${S}/certdata.txt .
 	python ${S}/certdata2pem.py
@@ -55,8 +58,7 @@ EOF
 		echo '#';
 	) > ca-bundle.trust.crt
 
-	> info.trust
-	> info.notrust
+	> ca-bundle.neutral-trust.crt
 
 	for f in certs/*.crt
 	do
@@ -85,14 +87,58 @@ EOF
 			echo "trust flags $targs for $f" >> info.trust
 			openssl x509 -text -in "$f" -trustout $targs -setalias "$alias" >> ca-bundle.trust.crt
 		else
-			echo "no trust flags for $f" >> tee -a info.notrust
+			echo "no trust flags for $f" >> info.notrust
 			openssl x509 -text -in "$f" >> ca-bundle.neutral-trust.crt
 		fi
 	done
-	for p in certs/*.p11-kit
+	for f in certs/legacy-enable/*.crt
 	do
-		cat $p >> ca-bundle.supplement.p11-kit
+		echo "processing $f"
+		tbits=`sed -n '/^# openssl-trust/{s/^.*=//;p;}' $f`
+		alias=`sed -n '/^# alias=/{s/^.*=//;p;q;}' $f | sed "s/'//g" | sed 's/"//g'`
+		targs=""
+		if [ -n "$tbits" ]
+		then
+			for t in $tbits
+			do
+				targs="$targs -addtrust $t"
+			done
+		fi
+		if [ -n "$targs" ]
+		then
+			echo "legacy enable flags $targs for $f" >> info.trust
+			openssl x509 -text -in "$f" -trustout $targs -setalias "$alias" >> ca-bundle.legacy.enable.crt
+		fi
 	done
+
+	for f in certs/legacy-disable/*.crt
+	do
+		echo "processing $f"
+		tbits=`sed -n '/^# openssl-trust/{s/^.*=//;p;}' $f`
+		alias=`sed -n '/^# alias=/{s/^.*=//;p;q;}' $f | sed "s/'//g" | sed 's/"//g'`
+		targs=""
+		if [ -n "$tbits" ]
+		then
+			for t in $tbits
+			do
+				targs="${targs} -addtrust $t"
+			done
+		fi
+		if [ -n "$targs" ]
+		then
+			echo "legacy disable flags $targs for $f" >> info.trust
+			openssl x509 -text -in "$f" -trustout $targs -setalias "$alias" >> ca-bundle.legacy.disable.crt
+		fi
+	done
+
+	P11FILES=`find certs -name *.p11-kit | wc -l`
+	if [ $P11FILES -ne 0 ]
+	then
+		for p in certs/*.p11-kit
+		do
+			cat "$p" >> ca-bundle.supplement.p11-kit
+		done
+	fi
 	cat ${S}/trust-fixes >> ca-bundle.supplement.p11-kit
 
 	asciidoc -v -d manpage -b docbook -o ${B}/update-ca-trust.8.xml ${S}/update-ca-trust.8.txt
@@ -100,7 +146,7 @@ EOF
 }
 
 src_install() {
-	dobin ${S}/update-ca-trust
+	dobin ${S}/update-ca-trust ${S}/ca-legacy
 	doman ${B}/update-ca-trust.8
 
 	# for p11-kit
@@ -112,6 +158,13 @@ src_install() {
 	newins ${S}/README.usr README
 	dodir /usr/share/pki/ca-trust-source/{anchors,blacklist}
 	keepdir /usr/share/pki/ca-trust-source/{anchors,blacklist}
+
+	insinto /usr/share/pki/ca-trust-legacy
+	doins ${B}/ca-bundle.legacy.{dis,en}able.crt
+
+	insinto /etc/pki/ca-trust
+	doins ${S}/ca-legacy.conf
+	make_etc_defaults /etc/pki/ca-trust/ca-legacy.conf
 
 	# touch all files overwritten by update-ca-trust for easy cleanup
 	insinto /etc/pki/ca-trust/extracted
