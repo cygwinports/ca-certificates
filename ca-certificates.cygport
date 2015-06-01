@@ -1,5 +1,5 @@
 NAME="ca-certificates"
-VERSION=2.3
+VERSION=2.4
 RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
@@ -33,7 +33,7 @@ ca_certificates_CONTENTS="etc/defaults/ etc/pki/ etc/postinstall/ etc/preremove/
 			  usr/lib/security/ usr/share/man/ usr/share/pki/ usr/ssl/"
 
 src_compile() {
-	mkdir -p ${B}/certs/legacy-{en,dis}able
+	mkdir -p ${B}/certs/legacy-{default,disable}
 	cd ${B}/certs
 	cp ${S}/certdata.txt .
 	python ${S}/certdata2pem.py
@@ -91,7 +91,7 @@ EOF
 			openssl x509 -text -in "$f" >> ca-bundle.neutral-trust.crt
 		fi
 	done
-	for f in certs/legacy-enable/*.crt
+	for f in certs/legacy-default/*.crt
 	do
 		echo "processing $f"
 		tbits=`sed -n '/^# openssl-trust/{s/^.*=//;p;}' $f`
@@ -106,8 +106,8 @@ EOF
 		fi
 		if [ -n "$targs" ]
 		then
-			echo "legacy enable flags $targs for $f" >> info.trust
-			openssl x509 -text -in "$f" -trustout $targs -setalias "$alias" >> ca-bundle.legacy.enable.crt
+			echo "legacy default flags $targs for $f" >> info.trust
+			openssl x509 -text -in "$f" -trustout $targs -setalias "$alias" >> ca-bundle.legacy.default.crt
 		fi
 	done
 
@@ -160,7 +160,7 @@ src_install() {
 	keepdir /usr/share/pki/ca-trust-source/{anchors,blacklist}
 
 	insinto /usr/share/pki/ca-trust-legacy
-	doins ${B}/ca-bundle.legacy.{dis,en}able.crt
+	doins ${B}/ca-bundle.legacy.{default,disable}.crt
 
 	insinto /etc/pki/ca-trust
 	doins ${S}/ca-legacy.conf
