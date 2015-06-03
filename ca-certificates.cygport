@@ -166,6 +166,11 @@ src_install() {
 	doins ${S}/ca-legacy.conf
 	make_etc_defaults /etc/pki/ca-trust/ca-legacy.conf
 
+	cat >> ${D}/etc/postinstall/${NAME}.sh <<-_EOF
+		/usr/bin/ca-legacy install
+		/usr/bin/update-ca-trust
+	_EOF
+
 	# touch all files overwritten by update-ca-trust for easy cleanup
 	insinto /etc/pki/ca-trust/extracted
 	newins ${S}/README.extr README
