@@ -1,6 +1,6 @@
 NAME="ca-certificates"
 VERSION=2.4
-RELEASE=1
+RELEASE=2
 CATEGORY="Net"
 SUMMARY="CA root certificates"
 DESCRIPTION="Mozilla's CA root certificates for use with OpenSSL and GNU-TLS."
@@ -196,6 +196,7 @@ src_install() {
 	# for other hardcoded ca-certificates consumers
 	dosym /usr/ssl/certs /etc/ssl/certs
 	dosym /usr/ssl/certs /etc/pki/tls/certs
+	dosym /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /etc/pki/tls/cert.pem
 
 	# for GNU Classpath Java
 	dodir /usr/lib/security
