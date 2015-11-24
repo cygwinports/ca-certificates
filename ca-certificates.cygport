@@ -1,5 +1,5 @@
 NAME="ca-certificates"
-VERSION=2.5
+VERSION=2.6
 RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
@@ -12,6 +12,7 @@ SRC_URI="fedora/certdata.txt
 	 fedora/certdata2pem.py
 	 fedora/ca-legacy.conf
 	 fedora/ca-legacy
+	 fedora/ca-legacy.8.txt
 	 fedora/update-ca-trust.8.txt
 	 fedora/README.usr
 	 fedora/README.etc
@@ -141,13 +142,16 @@ EOF
 	fi
 	cat ${S}/trust-fixes >> ca-bundle.supplement.p11-kit
 
-	asciidoc -v -d manpage -b docbook -o ${B}/update-ca-trust.8.xml ${S}/update-ca-trust.8.txt
-	xsltproc --nonet -o ${B}/update-ca-trust.8 /etc/asciidoc/docbook-xsl/manpage.xsl ${B}/update-ca-trust.8.xml
+	for man in update-ca-trust.8 ca-legacy.8
+	do
+		asciidoc -v -d manpage -b docbook -o ${B}/$man.xml ${S}/$man.txt
+		xsltproc --nonet -o ${B}/$man /etc/asciidoc/docbook-xsl/manpage.xsl ${B}/$man.xml
+	done
 }
 
 src_install() {
 	dobin ${S}/update-ca-trust ${S}/ca-legacy
-	doman ${B}/update-ca-trust.8
+	doman ${B}/update-ca-trust.8 ${B}/ca-legacy.8
 
 	# for p11-kit
 	dodir /usr/lib/p11-kit
