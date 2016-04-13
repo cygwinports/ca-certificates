@@ -3,7 +3,8 @@ VERSION=2.7
 RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
-DESCRIPTION="Mozilla's CA root certificates for use with OpenSSL and GNU-TLS."
+DESCRIPTION="Mozilla's CA root certificates for use with OpenSSL, NSS, GnuTLS,
+and other software that handles certificate verification."
 HOMEPAGE="http://www.mozilla.org/projects/security/certs/"
 SRC_URI="fedora/certdata.txt
 	 fedora/nssckbi.h
