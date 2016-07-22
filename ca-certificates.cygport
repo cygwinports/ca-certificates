@@ -1,5 +1,5 @@
 NAME="ca-certificates"
-VERSION=2.7
+VERSION=2.8
 RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
@@ -153,6 +153,7 @@ EOF
 src_install() {
 	dobin ${S}/update-ca-trust ${S}/ca-legacy
 	doman ${B}/update-ca-trust.8 ${B}/ca-legacy.8
+	sed -i -e 's/sln/ln -sf/' ${D}/usr/bin/ca-legacy
 
 	# for p11-kit
 	dodir /usr/lib/p11-kit
