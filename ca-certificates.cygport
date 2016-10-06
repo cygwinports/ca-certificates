@@ -1,5 +1,5 @@
 NAME="ca-certificates"
-VERSION=2.9
+VERSION=2.10
 RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
@@ -166,7 +166,11 @@ src_install() {
 	keepdir /usr/share/pki/ca-trust-source/{anchors,blacklist}
 
 	insinto /usr/share/pki/ca-trust-legacy
-	doins ${B}/ca-bundle.legacy.{default,disable}.crt
+	doins ${B}/ca-bundle.legacy.default.crt
+	if [ -f ${B}/ca-bundle.legacy.disable.crt ]
+	then
+		doins ${B}/ca-bundle.legacy.disable.crt
+	fi
 
 	insinto /etc/pki/ca-trust
 	doins ${S}/ca-legacy.conf
