@@ -1,5 +1,5 @@
 NAME="ca-certificates"
-VERSION=2.10
+VERSION=2.11
 RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
@@ -61,6 +61,8 @@ EOF
 	) > ca-bundle.trust.crt
 
 	> ca-bundle.neutral-trust.crt
+	> ca-bundle.legacy.default.crt
+	> ca-bundle.legacy.disable.crt
 
 	for f in certs/*.crt
 	do
@@ -167,10 +169,7 @@ src_install() {
 
 	insinto /usr/share/pki/ca-trust-legacy
 	doins ${B}/ca-bundle.legacy.default.crt
-	if [ -f ${B}/ca-bundle.legacy.disable.crt ]
-	then
-		doins ${B}/ca-bundle.legacy.disable.crt
-	fi
+	doins ${B}/ca-bundle.legacy.disable.crt
 
 	insinto /etc/pki/ca-trust
 	doins ${S}/ca-legacy.conf
