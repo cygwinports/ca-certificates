@@ -1,5 +1,5 @@
 NAME="ca-certificates"
-VERSION=2.11
+VERSION=2.14
 RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
@@ -31,7 +31,7 @@ DEPEND="asciidoc openssl python libxslt"
 
 ca_certificates_REQUIRES="p11-kit p11-kit-trust"
 ca_certificates_CONTENTS="etc/defaults/ etc/pki/ etc/postinstall/ etc/preremove/
-			  etc/ssl/ usr/bin/ usr/lib/p11-kit/
+			  etc/ssl/ usr/bin/ usr/libexec/p11-kit/
 			  usr/lib/security/ usr/share/man/ usr/share/pki/ usr/ssl/"
 
 src_compile() {
@@ -45,11 +45,8 @@ src_compile() {
 		cat <<EOF
 # This is a bundle of X.509 certificates of public Certificate
 # Authorities.  It was generated from the Mozilla root CA list.
-# These certificates are in the OpenSSL "TRUSTED CERTIFICATE"
-# format and have trust bits set accordingly.
-# An exception are auxiliary certificates, without positive or negative
-# trust, but are used to assist in finding a preferred trust path.
-# Those neutral certificates use the plain BEGIN CERTIFICATE format.
+# These certificates and trust/distrust attributes use the file format accepted
+# by the p11-kit-trust module.
 #
 # Source: mozilla/security/nss/lib/ckfw/builtins/certdata.txt
 # Source: mozilla/security/nss/lib/ckfw/builtins/nssckbi.h
@@ -58,43 +55,11 @@ src_compile() {
 EOF
 		grep -w NSS_BUILTINS_LIBRARY_VERSION ${S}/nssckbi.h | awk '{print "# " $2 " " $3}';
 		echo '#';
-	) > ca-bundle.trust.crt
+	) > ca-bundle.trust.p11-kit
 
-	> ca-bundle.neutral-trust.crt
 	> ca-bundle.legacy.default.crt
 	> ca-bundle.legacy.disable.crt
 
-	for f in certs/*.crt
-	do
-		echo "processing $f"
-		tbits=`sed -n '/^# openssl-trust/{s/^.*=//;p;}' $f`
-		distbits=`sed -n '/^# openssl-distrust/{s/^.*=//;p;}' $f`
-		alias=`sed -n '/^# alias=/{s/^.*=//;p;q;}' $f | sed "s/'//g" | sed 's/"//g'`
-		targs=""
-
-		if [ -n "$tbits" ]
-		then
-			for t in $tbits
-			do
-				targs="${targs} -addtrust $t"
-			done
-		fi
-		if [ -n "$distbits" ]
-		then
-			for t in $distbits
-			do
-				targs="${targs} -addreject $t"
-			done
-		fi
-		if [ -n "$targs" ]
-		then
-			echo "trust flags $targs for $f" >> info.trust
-			openssl x509 -text -in "$f" -trustout $targs -setalias "$alias" >> ca-bundle.trust.crt
-		else
-			echo "no trust flags for $f" >> info.notrust
-			openssl x509 -text -in "$f" >> ca-bundle.neutral-trust.crt
-		fi
-	done
 	for f in certs/legacy-default/*.crt
 	do
 		echo "processing $f"
@@ -135,15 +100,15 @@ EOF
 		fi
 	done
 
-	P11FILES=`find certs -name *.p11-kit | wc -l`
+	P11FILES=`find certs -name *.tmp-p11-kit | wc -l`
 	if [ $P11FILES -ne 0 ]
 	then
-		for p in certs/*.p11-kit
+		for p in certs/*.tmp-p11-kit
 		do
-			cat "$p" >> ca-bundle.supplement.p11-kit
+			cat "$p" >> ca-bundle.trust.p11-kit
 		done
 	fi
-	cat ${S}/trust-fixes >> ca-bundle.supplement.p11-kit
+	cat ${S}/trust-fixes >> ca-bundle.trust.p11-kit
 
 	for man in update-ca-trust.8 ca-legacy.8
 	do
@@ -158,11 +123,11 @@ src_install() {
 	sed -i -e 's/sln/ln -sf/' ${D}/usr/bin/ca-legacy
 
 	# for p11-kit
-	dodir /usr/lib/p11-kit
-	dosym ../../bin/update-ca-trust /usr/lib/p11-kit/trust-extract-compat
+	dodir /usr/libexec/p11-kit
+	dosym ../../bin/update-ca-trust /usr/libexec/p11-kit/trust-extract-compat
 
 	insinto /usr/share/pki/ca-trust-source
-	doins ${B}/ca-bundle.{trust.crt,neutral-trust.crt,supplement.p11-kit}
+	doins ${B}/ca-bundle.trust.p11-kit
 	newins ${S}/README.usr README
 	dodir /usr/share/pki/ca-trust-source/{anchors,blacklist}
 	keepdir /usr/share/pki/ca-trust-source/{anchors,blacklist}
