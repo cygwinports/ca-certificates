@@ -1,5 +1,5 @@
 NAME="ca-certificates"
-VERSION=2.22
+VERSION=2.26
 RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
@@ -18,6 +18,7 @@ SRC_URI="fedora/certdata.txt
 	 fedora/README.usr
 	 fedora/README.etc
 	 fedora/README.extr
+	 fedora/README.edk2
 	 fedora/README.java
 	 fedora/README.openssl
 	 fedora/README.pem
@@ -27,18 +28,30 @@ SRC_DIR=.
 
 ARCH=noarch
 
-DEPEND="asciidoc openssl python libxslt"
+BUILD_REQUIRES="asciidoc openssl python3 libxslt"
 
 ca_certificates_REQUIRES="p11-kit p11-kit-trust"
-ca_certificates_CONTENTS="etc/defaults/ etc/pki/ etc/postinstall/ etc/preremove/
-			  etc/ssl/ usr/bin/ usr/libexec/p11-kit/
-			  usr/lib/security/ usr/share/man/ usr/share/pki/ usr/ssl/"
+ca_certificates_CONTENTS="
+	etc/defaults/etc/pki/ca-trust/ca-legacy.conf
+	etc/pki/ca-trust/
+	etc/pki/tls/cert.pem
+	etc/pki/tls/certs/ca-bundle*.crt
+	etc/postinstall/${NAME}.sh
+	etc/preremove/${NAME}.sh
+	etc/ssl/certs
+	usr/bin/ca-legacy
+	usr/bin/update-ca-trust
+	usr/libexec/p11-kit/
+	usr/lib/security/cacerts
+	usr/share/man/man8/*
+	usr/share/pki/
+"
 
 src_compile() {
 	mkdir -p ${B}/certs/legacy-{default,disable}
 	cd ${B}/certs
 	cp ${S}/certdata.txt .
-	python ${S}/certdata2pem.py
+	python3 ${S}/certdata2pem.py
 
 	cd ${B}
 	(
@@ -62,6 +75,7 @@ EOF
 
 	for f in certs/legacy-default/*.crt
 	do
+		[ -f $f ] || continue
 		echo "processing $f"
 		tbits=`sed -n '/^# openssl-trust/{s/^.*=//;p;}' $f`
 		alias=`sed -n '/^# alias=/{s/^.*=//;p;q;}' $f | sed "s/'//g" | sed 's/"//g'`
@@ -82,6 +96,7 @@ EOF
 
 	for f in certs/legacy-disable/*.crt
 	do
+		[ -f $f ] || continue
 		echo "processing $f"
 		tbits=`sed -n '/^# openssl-trust/{s/^.*=//;p;}' $f`
 		alias=`sed -n '/^# alias=/{s/^.*=//;p;q;}' $f | sed "s/'//g" | sed 's/"//g'`
@@ -161,21 +176,23 @@ src_install() {
 	newins ${S}/README.java README
 	touch ${D}/etc/pki/ca-trust/extracted/java/cacerts
 
+	insinto /etc/pki/ca-trust/extracted/edk2
+	newins ${S}/README.edk2 README
+	touch ${D}/etc/pki/ca-trust/extracted/edk2/cacerts.bin
+
 	insinto /etc/pki/ca-trust/source
 	newins ${S}/README.src README
 	dodir /etc/pki/ca-trust/source/{anchors,blacklist}
 	keepdir /etc/pki/ca-trust/source/{anchors,blacklist}
 
-	dodir /usr/ssl/certs /etc/ssl /etc/pki/tls
+	dodir /etc/pki/tls/certs /etc/ssl
 	# for OpenSSL
-	dosym /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /usr/ssl/cert.pem
-	# for backwards compatibility
-	dosym /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /usr/ssl/certs/ca-bundle.crt
-	dosym /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt /usr/ssl/certs/ca-bundle.trust.crt
-	# for other hardcoded ca-certificates consumers
-	dosym /usr/ssl/certs /etc/ssl/certs
-	dosym /usr/ssl/certs /etc/pki/tls/certs
 	dosym /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /etc/pki/tls/cert.pem
+	# for backwards compatibility
+	dosym /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /etc/pki/tls/certs/ca-bundle.crt
+	dosym /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt /etc/pki/tls/certs/ca-bundle.trust.crt
+	# for other hardcoded ca-certificates consumers
+	dosym /etc/pki/tls/certs /etc/ssl/certs
 
 	# for GNU Classpath Java
 	dodir /usr/lib/security
