@@ -1,5 +1,5 @@
 NAME="ca-certificates"
-VERSION=2.30
+VERSION=2.32
 RELEASE=1
 CATEGORY="Net"
 SUMMARY="CA root certificates"
